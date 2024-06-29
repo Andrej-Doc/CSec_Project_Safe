@@ -1,9 +1,5 @@
 <%- include('head', { title: 'Unsafe Login' }) -%>
 
-  <% if (PORT) { %>
-    <h2>Express running on port <%= PORT %>
-    </h2>
-    <% } %>
       <h1>Login</h1>
       <table>
         <tr>
@@ -23,11 +19,6 @@
               </p>
             </form>
 
-          </td>
-          <td>
-            <form method="POST" action="/auth/ResetDB">
-              <input type="submit" value="ResetDB">
-            </form>
           </td>
         </tr>
       </table>
