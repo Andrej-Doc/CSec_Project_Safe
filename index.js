@@ -18,7 +18,6 @@ process.on('uncaughtException', function (err) {
 });
 
 // MySQL server connection
-
 const connection = mysql.createPool({
   host: 'localhost',
   user: 'Admin',
@@ -33,10 +32,10 @@ const connection = mysql.createPool({
 var app = module.exports = express();
 
 // Config
-
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Middleware
 app.use(express.urlencoded({ extended: false }))
 app.use(session({
 
@@ -46,15 +45,20 @@ app.use(session({
   cookie: { maxAge: 600000000 }
 
 }))
+
 // Session-persisted message middleware
 app.use(function (req, res, next) {
   var err = req.session.error;
   var msg = req.session.success;
+
   delete req.session.error;
   delete req.session.success;
+
   res.locals.message = '';
+
   if (err) res.locals.message = '<p class="msg error">' + err + '</p>';
   if (msg) res.locals.message = '<p class="msg success">' + msg + '</p>';
+
   next();
 });
 
@@ -82,7 +86,7 @@ let privKey; // ASSUME THIS IS SECURE STORAGE
 let pubKey;
 
 (async () => {
-  const { publicKey: publicKey_paserk, secretKey: privateKey_paserk } = await V4.generateKey('public', { format: "paserk" }) // strings
+  const { publicKey: publicKey_paserk, secretKey: privateKey_paserk } = await V4.generateKey('public', { format: "paserk" })
   privKey = privateKey_paserk;
   pubKey = publicKey_paserk;
 })();
@@ -94,13 +98,11 @@ app.get('/', (req, res) => {
 
 // Logged in users can see this
 app.get('/restricted', restrict, function (req, res) {
-
   res.render('restricted', {
   });
 });
 
 app.get('/logout', function (req, res) {
-
   req.session.destroy(function () {
     res.redirect('/login');
   });
@@ -117,35 +119,47 @@ app.get('/register', function (req, res) {
 app.get('/index', function (req, res) {
   res.render('index');
 })
+
+// Hashing function
 async function hashPassword(password) {
   try {
     return await argon2.hash(password);
   } catch {
-    console.log('Error');
+    console.log('Hashing Error');
   }
 }
 
 
 //Registration
 app.post('/auth/register', async (req, res) => {
+
   const username = req.body.username;
   const password = req.body.password;
   const poolConn = await connection.getConnection();
+
   if (username && password) {
+
     const [rows] = await poolConn.query(`SELECT * FROM secureuser WHERE username =?`, [username])
+
     if (rows.length > 0) {
       res.send('Username already exists, click to <a href="/register">try again</a>');
     }
     else {
       hashPassword(password).then(hash => {
-        console.log(hash);
         poolConn.query(`INSERT INTO secureuser (userid, username, pass) VALUES (DEFAULT, ?, ?)`, [username, hash])
+
         req.session.username = username;
         res.redirect('../restricted');
 
       }).catch(err => {
         console.log(err);
       });
+      try {
+        const token = await V4.sign({ user: username, scopes: ['restricted:view'], exp: new Date(Date.now() + 5 * 60 * 1000).toISOString() }, privKey);
+        req.session.token = token;
+      } catch (err) {
+        console.log(err);
+      }
     }
   }
   else {
@@ -156,20 +170,27 @@ app.post('/auth/register', async (req, res) => {
 
 // Authentication
 app.post('/auth/login', async (req, res) => {
+
   const username = req.body.username;
   const password = req.body.password;
   const poolConn = await connection.getConnection();
+
   // Secure login query
   if (username && password) {
+
     const [rows] = await poolConn.query(`SELECT * FROM secureuser WHERE username=?`, [username])
+
     if (rows.length > 0) {
+
       const user = rows[0];
 
       if (await argon2.verify(user.pass, password)) {
         req.session.username = username; // Send token as a cookie or in the response body
         try {
+
           const token = await V4.sign({ user: username, scopes: ['restricted:view'], exp: new Date(Date.now() + 5 * 60 * 1000).toISOString() }, privKey);
           req.session.token = token;
+
         } catch (err) {
           console.log(err);
         }
