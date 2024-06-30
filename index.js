@@ -30,20 +30,21 @@ const connection = mysql.createPool({
   enableKeepAlive: true
 })
 
-
 var app = module.exports = express();
 
-// config
+// Config
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: false }))
 app.use(session({
+
   secret: 'keyboard cat',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 600000000 }
+
 }))
 // Session-persisted message middleware
 app.use(function (req, res, next) {
@@ -57,21 +58,29 @@ app.use(function (req, res, next) {
   next();
 });
 
-// deny access to logged out users to restricted pages
+// Deny access to logged out users to restricted pages
 function restrict(req, res, next) {
-  V4.verify(req.session.token, pubKey).then((payload) => {
-    const tokenScopes = new Set(payload.scopes);
-    if (tokenScopes.has('restricted:view')) {
-      console.log('Access granted!');
-      next();
-    } else {
-      res.redirect('/login');
-    }
-  });
+  if (typeof token != "undefined") {
+    res.redirect('/login');
+  }
+  else {
+    V4.verify(req.session.token, pubKey).then((payload) => {
+
+      const tokenScopes = new Set(payload.scopes);
+
+      if (tokenScopes.has('restricted:view')) {
+        console.log('Access granted!');
+        next();
+      } else {
+        res.redirect('/login');
+      }
+    });
+  }
 }
 
-let privKey; // ASSUME THIS IS SECURE STORAEG
+let privKey; // ASSUME THIS IS SECURE STORAGE
 let pubKey;
+
 (async () => {
   const { publicKey: publicKey_paserk, secretKey: privateKey_paserk } = await V4.generateKey('public', { format: "paserk" }) // strings
   privKey = privateKey_paserk;
@@ -83,7 +92,7 @@ app.get('/', (req, res) => {
   res.render('login');
 });
 
-// logged in users can see this
+// Logged in users can see this
 app.get('/restricted', restrict, function (req, res) {
 
   res.render('restricted', {
@@ -115,7 +124,6 @@ async function hashPassword(password) {
     console.log('Error');
   }
 }
-
 
 
 //Registration
