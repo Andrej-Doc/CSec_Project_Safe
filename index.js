@@ -21,10 +21,9 @@ process.on('uncaughtException', function (err) {
 const connection = mysql.createPool({
   host: 'localhost',
   user: 'Admin',
-  password: 'UkR3ROzecWiHVuTUCjVL',
-  database: 'userdb',
+  password: 'UkR3ROzecWiHVuTUCjVL', // Change this to your MySQL password
+  database: 'userdb',               // Change this to your MySQL database
   waitForConnections: true,
-  multipleStatements: true,
   keepAliveInitialDelay: 10000,
   enableKeepAlive: true
 })
