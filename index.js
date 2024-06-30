@@ -8,11 +8,8 @@ var express = require('express');
 var path = require('path');
 var session = require('express-session');
 var mysql = require('mysql2/promise');
-const util = require('util');
 const argon2 = require('argon2');
 const { V4 } = require('paseto');
-const { createPrivateKey } = require('crypto');
-// const key = createPrivateKey(privateKey);
 
 // Error handling
 process.on('uncaughtException', function (err) {
@@ -33,11 +30,6 @@ const connection = mysql.createPool({
   enableKeepAlive: true
 })
 
-//payload
-const payload = {
-  sub: 'username',
-  'urn:example:claim': 'example'
-}
 
 var app = module.exports = express();
 
@@ -50,13 +42,9 @@ app.use(express.urlencoded({ extended: false }))
 app.use(session({
   secret: 'keyboard cat',
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: { maxAge: 600000000 }
 }))
-
-
-
-
 // Session-persisted message middleware
 app.use(function (req, res, next) {
   var err = req.session.error;
@@ -71,29 +59,39 @@ app.use(function (req, res, next) {
 
 // deny access to logged out users to restricted pages
 function restrict(req, res, next) {
-  if (req.session.loggedin) {
-    next();
-  } else {
-    console.log('Access denied!');
-    res.redirect('/login');
-  }
+  V4.verify(req.session.token, pubKey).then((payload) => {
+    const tokenScopes = new Set(payload.scopes);
+    if (tokenScopes.has('restricted:view')) {
+      console.log('Access granted!');
+      next();
+    } else {
+      res.redirect('/login');
+    }
+  });
 }
+
+let privKey; // ASSUME THIS IS SECURE STORAEG
+let pubKey;
+(async () => {
+  const { publicKey: publicKey_paserk, secretKey: privateKey_paserk } = await V4.generateKey('public', { format: "paserk" }) // strings
+  privKey = privateKey_paserk;
+  pubKey = publicKey_paserk;
+})();
+
+// Routes
 app.get('/', (req, res) => {
   res.render('login');
 });
 
 // logged in users can see this
 app.get('/restricted', restrict, function (req, res) {
-  const USERNAME = req.session.username;
-  res.render('restricted',{
-    loggedIn: true,
-    USERNAME
-  })
+
+  res.render('restricted', {
+  });
 });
 
 app.get('/logout', function (req, res) {
-  // destroy the user's session to log them out
-  // will be re-created next request
+
   req.session.destroy(function () {
     res.redirect('/login');
   });
@@ -117,8 +115,10 @@ async function hashPassword(password) {
     console.log('Error');
   }
 }
-//register and log in user
 
+
+
+//Registration
 app.post('/auth/register', async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
@@ -146,7 +146,7 @@ app.post('/auth/register', async (req, res) => {
   }
 });
 
-// login and authenticate user
+// Authentication
 app.post('/auth/login', async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
@@ -156,11 +156,16 @@ app.post('/auth/login', async (req, res) => {
     const [rows] = await poolConn.query(`SELECT * FROM secureuser WHERE username=?`, [username])
     if (rows.length > 0) {
       const user = rows[0];
-    
+
       if (await argon2.verify(user.pass, password)) {
-        req.session.loggedin = true;
-        req.session.username = username;
-        res.redirect('../restricted');
+        req.session.username = username; // Send token as a cookie or in the response body
+        try {
+          const token = await V4.sign({ user: username, scopes: ['restricted:view'], exp: new Date(Date.now() + 5 * 60 * 1000).toISOString() }, privKey);
+          req.session.token = token;
+        } catch (err) {
+          console.log(err);
+        }
+        res.redirect('/restricted');
 
       } else {
         // Password is incorrect
@@ -178,6 +183,9 @@ app.post('/auth/login', async (req, res) => {
     res.end();
   }
 });
+
+
+
 
 
 if (!module.parent) {

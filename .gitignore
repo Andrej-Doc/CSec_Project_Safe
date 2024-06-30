@@ -2,3 +2,5 @@
 .env
 Notes.txt
 notes2.txt
+private.pem
+public.pem
