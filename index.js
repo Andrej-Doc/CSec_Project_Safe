@@ -10,8 +10,8 @@ var session = require('express-session');
 var mysql = require('mysql2/promise');
 const argon2 = require('argon2');
 const { V4 } = require('paseto');
-const xss = require('xss');  
-require('dotenv').config({path: __dirname + '/.env'});
+const xss = require('xss');
+require('dotenv').config({ path: __dirname + '/.env' });
 
 // Error handling
 process.on('uncaughtException', function (err) {
@@ -25,11 +25,11 @@ process.on('uncaughtException', function (err) {
 const connection = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
-  password: process.env.DB_PASS, 
-  database: process.env.DB,               
+  password: process.env.DB_PASS,
+  database: process.env.DB,
   waitForConnections: true,
   keepAliveInitialDelay: 10000,
-  enableKeepAlive: true 
+  enableKeepAlive: true
 })
 
 var app = module.exports = express();
@@ -45,7 +45,6 @@ app.use(session({
   secret: 'keyboard cat',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 600000000 }
 
 }))
 
@@ -67,23 +66,26 @@ app.use(function (req, res, next) {
 
 // Deny access to logged out users to restricted pages
 function restrict(req, res, next) {
-  if (typeof token != "undefined") {
-    res.redirect('/login');
-  }
-  else {
-    V4.verify(req.session.token, pubKey).then((payload) => {
 
-      const tokenScopes = new Set(payload.scopes);
+  if (req.session.token === undefined) {
+    console.log('Access denied!')
+   res.redirect('/login');
+  } else {
 
-      if (tokenScopes.has('restricted:view')) {
-        console.log('Access granted!');
-        next();
-      } else {
-        res.redirect('/login');
-      }
-    });
-  }
+  V4.verify(req.session.token, pubKey).then((payload) => {
+
+    const tokenScopes = new Set(payload.scopes);
+
+    if (tokenScopes.has('restricted:view')) {
+      console.log('Access granted!');
+      next();
+    } else {
+      res.redirect('/login');
+    }
+  });
 }
+}
+
 let comments = []; // Store in memory for demonstration purposes
 
 // Generate key pair for PASETO, for demonstration purposes, do not use this in production
@@ -122,18 +124,18 @@ app.get('/register', function (req, res) {
 });
 
 app.get('/index', function (req, res) {
-  res.render('index',{ comments: comments });
+  res.render('index', { comments: comments });
 })
 
-app.post('/comment', (req, res) => { 
+app.post('/comment', (req, res) => {
 
   const comment = xss(req.body.comment); // Sanitize the input 
 
-  comments.push(comment); 
+  comments.push(comment);
 
-  res.redirect('/'); 
+  res.redirect('/');
 
-}); 
+});
 // Hashing function
 async function hashPassword(password) {
   try {
