@@ -84,6 +84,8 @@ function restrict(req, res, next) {
   }
 }
 
+
+// Generate key pair for PASETO, for demonstration purposes, do not use this in production
 let privKey; // ASSUME THIS IS SECURE STORAGE
 let pubKey;
 
