@@ -4,3 +4,8 @@ Notes.txt
 notes2.txt
 private.pem
 public.pem
+envvars.env
+.env*
+.flaskenv*
+!.env.project
+!.env.vault

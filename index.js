@@ -10,6 +10,7 @@ var session = require('express-session');
 var mysql = require('mysql2/promise');
 const argon2 = require('argon2');
 const { V4 } = require('paseto');
+require('dotenv').config({path: __dirname + '/.env'});
 
 // Error handling
 process.on('uncaughtException', function (err) {
@@ -17,15 +18,17 @@ process.on('uncaughtException', function (err) {
   console.log("Node NOT Exiting...");
 });
 
+
+
 // MySQL server connection
 const connection = mysql.createPool({
-  host: 'localhost',
-  user: 'Admin',
-  password: 'UkR3ROzecWiHVuTUCjVL', // Change this to your MySQL password
-  database: 'userdb',               // Change this to your MySQL database
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS, 
+  database: process.env.DB,               
   waitForConnections: true,
   keepAliveInitialDelay: 10000,
-  enableKeepAlive: true
+  enableKeepAlive: true 
 })
 
 var app = module.exports = express();
