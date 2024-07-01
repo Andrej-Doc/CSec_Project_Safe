@@ -10,6 +10,7 @@ var session = require('express-session');
 var mysql = require('mysql2/promise');
 const argon2 = require('argon2');
 const { V4 } = require('paseto');
+const xss = require('xss');  
 require('dotenv').config({path: __dirname + '/.env'});
 
 // Error handling
@@ -83,7 +84,7 @@ function restrict(req, res, next) {
     });
   }
 }
-
+let comments = []; // Store in memory for demonstration purposes
 
 // Generate key pair for PASETO, for demonstration purposes, do not use this in production
 let privKey; // ASSUME THIS IS SECURE STORAGE
@@ -97,7 +98,7 @@ let pubKey;
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('login');
+  res.render('login', { comments: comments });
 });
 
 // Logged in users can see this
@@ -113,7 +114,7 @@ app.get('/logout', function (req, res) {
 });
 
 app.get('/login', function (req, res) {
-  res.render('login');
+  res.render('login', { comments: comments });
 });
 
 app.get('/register', function (req, res) {
@@ -121,9 +122,18 @@ app.get('/register', function (req, res) {
 });
 
 app.get('/index', function (req, res) {
-  res.render('index');
+  res.render('index',{ comments: comments });
 })
 
+app.post('/comment', (req, res) => { 
+
+  const comment = xss(req.body.comment); // Sanitize the input 
+
+  comments.push(comment); 
+
+  res.redirect('/'); 
+
+}); 
 // Hashing function
 async function hashPassword(password) {
   try {
